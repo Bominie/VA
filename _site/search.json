@@ -1,0 +1,21 @@
+{
+  "articles": [
+    {
+      "path": "about.html",
+      "title": "About this site",
+      "description": "This website consists of a collection of works done for courses I took during my MITB (Analytics) journey. I hope you enjoy reading them. Bon voyage!",
+      "author": [],
+      "contents": "\n\n\n\n",
+      "last_modified": "2022-05-03T14:21:55+08:00"
+    },
+    {
+      "path": "index.html",
+      "title": "Visual Analytics and Applications",
+      "description": "Welcome to the website. I hope you enjoy it!\n",
+      "author": [],
+      "contents": "\n\n\n\n",
+      "last_modified": "2022-05-03T14:26:50+08:00"
+    }
+  ],
+  "collections": ["posts/posts.json"]
+}

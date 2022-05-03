@@ -1,0 +1,26 @@
+name: "DA"
+title: "Visual Analytics and Applications"
+description: |
+  Visual Analytics and Applications
+output_dir: "_site"
+navbar:
+  right:
+    - text: "Home"
+      href: index.html
+    - text: "About"
+      href: about.html
+  left:
+    - text: "DataViz Makeover"
+      menu:
+      - text: "DataViz Makeover 1"
+        href: "DataViz1"
+      - text: "DataViz Makeover 2"
+        href: "DataViz2"
+    - text: "Take-home Exercise"
+      menu:
+      - text: "Take-home excercise 1"
+        href: "posts/2022-04-25-hw1/index.html"
+      - text: "Take-home excercise 2"
+        href: "posts/2022-04-25-hw2/index.html"
+output: distill::distill_article
+

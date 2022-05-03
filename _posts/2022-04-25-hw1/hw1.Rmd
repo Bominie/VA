@@ -1,0 +1,202 @@
+---
+title: "Take home Excercise 1 "
+description: |
+  Demographic of Ohio USA, city of Engagement (VAST Challenge 2022) .
+author:
+  - name: Bomin Kim
+date: 2022-04-25
+output:
+  distill::distill_article:
+    self_contained: false
+---
+ 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = TRUE,warning = FALSE,message = FALSE)
+```
+
+# Overview
+In this exercise we will explore family of packages such as tidyverse and ggplot to create visual analysis of the demographic of city of Engagement Ohio,USA. By exploiting and practicing, we will be able to have better understanding of how to diversely analyze and plot data through R.
+
+Loading the required packages:
+
+```{r}
+packages = c('tidyverse', 'plotly', 'readxl', 'knitr', 'dplyr', 'ggplot2', 
+             'grid')
+
+for(p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+# Preparing Data
+
+1.Reading the data:
+
+```{r}
+participants <- read_csv("data/participants.csv")
+```
+```{r eval=FALSE} 
+FinancialJournal <- read_csv("data/FinancialJournal.csv")
+```
+
+2.Rename the columns
+
+We will rename some column names for simplicity.
+
+```{r}
+participants <- participants %>%
+  rename('householdsize'='householdSize',
+         'havekids'='haveKids',
+         'educationlevel'='educationLevel',
+         'interestgroup'='interestGroup',
+         'Happiness'='joviality')
+```
+
+3.Merge two dataframs
+
+We will mainly use the data in "participants.csv", but we will also use the wage data in "FinancialJournal.csv".
+
+```{r eval=FALSE}
+Wage <- FinancialJournal %>%
+  filter(category == "Wage") %>%
+  group_by(participantId) %>%
+  select(participantId, amount) %>%
+  summarise(wage = mean(amount))
+write_rds(Wage,"data/wage.rds")
+```
+```{r}
+wage<-read_rds("data/wage.rds")
+```
+```{r}
+participants <- merge(x = participants, y = wage[ ,c("participantId","wage")],
+by="participantId", all.x=TRUE)
+```
+
+Now we are done with data wrangling and can start analyzing!
+
+# Age distribution
+
+1.First glimp of age distribution
+
+Below is a simple age distribution among the participants:
+
+```{r}
+ggplot(participants,aes(age,fill=havekids))+
+  geom_histogram(bins=(max(participants$age)-min(participants$age))/2,color="grey30")+
+  ggtitle("Age distribution with kids status")+
+  xlab("Age")+ylab("# of Participants")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+2.Categorizing age groups
+
+We will dissect the age by every 10 years to further understand its distribution:
+
+```{r}
+participants<-participants%>%mutate(agegroup=case_when(age<30~"Below 30",
+                                    
+                                    age>=30 &age<40~"30-39",
+                                    age>=40 &age<50~"40-49",
+                                    age>=50 ~"50 and above"))
+```                                   
+                                  
+3.Pie chart of age groups
+
+```{r}
+piedf <- participants %>% count(agegroup,sort=TRUE)
+
+ggplot(piedf, aes(x="", y=n, fill=agegroup)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  theme_void() +
+  geom_label(aes(label =n), 
+             position = position_stack(vjust = 0.5), 
+             show.legend = FALSE) +
+  scale_fill_brewer() +
+  ggtitle("Age Group in Ohio USA") +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+We now have learned among the surveyees, the population is age wise evenly distributed. 
+
+# Education level distribution
+
+1.Education level vs age groups
+
+We know people of different generation received education differently due to various constraints. Below is a reflection of it.
+
+```{r}
+ggplot(participants, aes(x=agegroup, fill=educationlevel))+
+  geom_bar()+
+  ggtitle("Educational level vs age groups")+
+  xlab("Age Group")+ylab("# of Participants")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+Due to each age group has total different number of people, we will normalize each group and find out the ratio of different education levels within age groups:
+
+```{r}
+eduvsage<-participants%>%group_by(agegroup,educationlevel)%>%tally()
+eduvsage<-eduvsage%>%
+  group_by(agegroup)%>%
+  mutate(Total=sum(n),percent=round(n*100/Total))%>%
+  ungroup()
+ggplot(eduvsage, aes(x=agegroup, y=percent,fill=educationlevel))+
+  geom_col()+
+  xlab("Age Group")+ylab("% of Participants")+
+  ggtitle("Education level vs age groups in %")+
+  theme(plot.title = element_text(hjust = 0.5))
+```                                   
+
+2.Education level vs wage
+
+Below is a distribution of wage based on different education levels.
+
+```{r}
+ggplot(participants, aes(x=wage, fill=educationlevel))+
+  geom_histogram(color="grey30")+
+  xlab("Income")+ylab("# of Participants")+
+  ggtitle("Education level vs income")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Again, we will to find out the ratio of education levels in different income class. I have defined income class as (low,mid,high) based on (<25%,25%<75%,>75%) of the income distribution. 
+
+```{r}
+participants<-participants%>%mutate(incomegroup=case_when(wage<quantile(participants$wage,probs=c(.25))~"Low Income",wage>=quantile(participants$wage,probs=c(.25)) &wage<quantile(participants$wage,probs=c(.75))~"Mid Income",wage>=quantile(participants$wage,probs=c(.75)) ~"High Income"))
+
+eduvswage<-participants%>%group_by(incomegroup,educationlevel)%>%tally()
+eduvswage<-eduvswage%>%
+  group_by(incomegroup)%>%
+  mutate(Total=sum(n),percent=round(n*100/Total))%>%
+  ungroup()
+ggplot(eduvswage, aes(x=incomegroup, y=percent,fill=educationlevel))+
+  geom_col()+
+  xlab("Income Group")+ylab("% of Participants")+
+  ggtitle("Education level vs income group in %")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+# Distribution of happiness
+
+1.Happiness vs interest group vs having kids
+
+```{r}
+ggplot(participants,aes(y=Happiness,x=interestgroup))+
+  geom_boxplot()+
+  stat_summary(geom ="point") +
+  facet_grid(havekids ~.)+
+  xlab("Interest group")+ylab("Happiness")+
+  ggtitle("Happiness vs interest Groups vs having kids or not")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+2.Happiness vs income group
+
+```{r}
+ggplot(participants,aes(y=Happiness,x=incomegroup))+
+  geom_boxplot()+
+  stat_summary(geom ="point")+
+  xlab("Income group")+ylab("Happiness")+
+  ggtitle("Happiness vs income group")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
