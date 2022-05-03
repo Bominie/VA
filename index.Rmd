@@ -1,9 +1,22 @@
 ---
-title: "Visual Analytics and Applications"
+title: "Bomin Kim"
+image: "beauty_1631187746608.JPG"
 description: |
-  Welcome to the website. I hope you enjoy it!
+  zdhdzrhdzrg
+links:
+  - label: LinkedIn
+    url: "https://www.linkedin.com/in/bomin-kim-54229518b/"
+  - label: GitHub
+    url: "https://github.com/Bominie"
+  - label: Tableau
+    url: "https://public.tableau.com/app/profile/bomin.kim2967"
 site: distill::distill_website
+output:
+  postcards::jolla
 ---
+Welcome to the website. I hope you enjoy it!  
+
+I bet you "R"
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
