@@ -1,5 +1,5 @@
 ---
-title: "HW3"
+title: "Take home Exercise 3"
 description: |
   A short description of the post.
 author:

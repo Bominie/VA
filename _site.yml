@@ -22,5 +22,12 @@ navbar:
         href: "posts/2022-04-25-hw1/index.html"
       - text: "Take-home excercise 2"
         href: "posts/2022-04-25-hw2/index.html"
+      - text: "Take-home excercise 3"
+        href: "posts/2022-04-25-hw3/index.html"
+    - text: "In-class Excersie"
+      menu:
+      - text: "In-class Excercise 4"
+        href: In-class_Ex/In-class_Ex04.html
+      
 output: distill::distill_article
 
