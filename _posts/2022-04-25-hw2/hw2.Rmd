@@ -438,3 +438,7 @@ summary(df_joviality.funfactor.lm)
 I was surprised by the talents that my classmates possess, and genuinely have learned a lot in these two exercises from them. The skeleton of this study that Aloysius provided gave a good base structure, thank you mate and thank you Google.
 
 Since Joviality aka Happiness, is such a fascinating and complex topic. A database with such size and valid inputs from multiple angles is ideal to quantify what happiness is made of. The final objective of this study should be a multi-factors linear regression model where Y=happiness, X=(not limited to) the above 8 factors. 
+
+```{r}
+saveRDS(df, file = "hw2_participants.rds")
+```

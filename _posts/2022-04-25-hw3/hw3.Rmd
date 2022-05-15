@@ -1,7 +1,9 @@
 ---
 title: "Take home Exercise 3"
 description: |
-  A short description of the post.
+  Describe the health of the various employers within the city limits. 
+  What employment patterns do you obesrve? Do you notice any areas of 
+  particularly high or low turnover?
 author:
   - name: Bomin Kim
 date: 2022-04-25
@@ -9,14 +11,305 @@ output:
   distill::distill_article:
     self_contained: false
 ---
+<style type="text/css">
 
-
+body{ /* Normal  */
+      font-size: 12px;
+  }
+td {  /* Table  */
+  font-size: 8px;
+}
+h1.title {
+  font-size: 38px;
+}
+h1 { /* Header 1 */
+  font-size: 28px;
+}
+h2 { /* Header 2 */
+    font-size: 22px;
+}
+</style>
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE,eval = TRUE,warning = FALSE,message = FALSE)
+```
+## Overview
+In HW3 we will mainly focus on answering the 3rd part of challenge 3 in VAST 2022, ie. 
+
+1. The employment pattern in city OHIO USA 
+2. Turnover rate
+
+# Part 1. Data Preparation
+Loading packages
+
+```{r}
+packages = c('tidyverse', 'plotly', 'readxl', 'knitr', 'dplyr', 'ggplot2', 
+             'grid','plotly','ggstatsplot','ggiraph','DT','patchwork',
+             'gganimate','gifski','gapminder','treemap','treemapify','rPackedBar')
+for(p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
 ```
 
-Distill is a publication format for scientific and technical writing, native to the web.
+Reading files
 
-Learn more about using Distill at <https://rstudio.github.io/distill>.
+```{r}
+Buildings <- read_csv("dt/Buildings.csv")
+Jobs <- read_csv("dt/Jobs.csv")
+Employers <- read_csv("dt/Employers.csv")
+Participants <- read_rds("dt/hw2_participants.rds")
+```
 
+Below code chuck works on TravelJournal.csv and CheckinJournal.csv to calculate the average traveling time and average checkin/working time.
+
+
+
+```{r}
+avgcheckintime<-read_rds("dt/avgcheckintimehw3.rds")
+
+avgtraveltime<-read_rds("dt/avgtraveltimehw3.rds")
+
+avgcheckintime2<-spread(avgcheckintime, venueType.end, time)
+colnames(avgcheckintime2)[2] <- "Apartmentavgduration"
+colnames(avgcheckintime2)[3] <- "Pubavgduration"
+colnames(avgcheckintime2)[4] <- "Restaurantavgduration"
+colnames(avgcheckintime2)[5] <- "Workplaceavgduration"
+
+workplaceaprtmenttraveltime<-subset(avgtraveltime, venueType.start=="Apartment")
+workplaceaprtmenttraveltime<-subset(workplaceaprtmenttraveltime, venueType.end=="Workplace")
+
+knitr::kable(head(avgcheckintime2), format = 'html')
+knitr::kable(head(workplaceaprtmenttraveltime), format = 'html')
+```
+
+Below code chuck works on Jobs.csv to calculate total working hours and total weekly pay.
+
+```{r}
+Jobs1 <- Jobs %>% separate(daysToWork, c('day0','day1','day2','day3','day4','day5','day6'))
+#sum(c$day0!="")
+#sum(c$day6!="")
+Jobs = subset(Jobs1, select = -c(day0,day6) )
+Jobs<-Jobs %>%
+  mutate(totalworkhour=difftime(Jobs$endTime,Jobs$startTime,units='hours')*5)
+Jobs<-Jobs %>%
+  mutate(totalweeklypay=hourlyRate*totalworkhour)
+Jobs$totalweeklypay=as.numeric(Jobs$totalweeklypay)
+Jobs <-Jobs %>%
+    mutate(educationRequirement = fct_relevel(educationRequirement,'Low', 
+                                              'HighSchoolOrCollege', 'Bachelors', 'Graduate'))
+
+```
+
+Below code chuck works on Employers.csv to identify building types and location.
+
+```{r}
+Employers<-Employers %>%
+    select("employerId","location","buildingId") %>%
+    distinct() %>%
+    left_join(Buildings, by = 'buildingId')
+colnames(Employers)[2] <- "employerlocation"
+colnames(Employers)[4] <- "buildinglocation"
+
+```
+
+Below code chuck revealed that buildingID in Attributes is different from VenueID in Journals and it's hard to link Employers to Participants.
+
+```{r}
+#If Employers compared to TravelJournal, we can see not all employerId showed up in TravelJournal,
+#confirming some employers do not have employees and can not be linked to participantID.
+
+#Employers <- Employers[order(Employers$buildingId),]
+
+#due to the size of travelJournal, we will not read the file here. However, below code shows 
+#VenueId is different from buildingId.
+
+#TravelJournal3<-TravelJournal2 %>%
+#  mutate(buildingId=travelEndLocationId)
+
+#Employers2<-Employers %>%
+#    select("employerId","employerlocation","buildingId", "buildinglocation" ,
+#           "buildingType", "maxOccupancy", "units" ) %>%
+#    distinct() %>%
+#    right_join(TravelJournal2, by = 'buildingId')
+```
+
+Below code chuck works on TravelJournal.csv to reveal the turnover rate by each participantID.
+
+```{r}
+Workplace1<-read_rds("dt/Workplace1hw3.rds")
+
+Participants<-Workplace1 %>%right_join(Participants, by = 'participantId')
+```
+
+
+# Part 2. Employment Pattern
+2.1 Employer provided information
+
+The data has revealed that employers all reported a 8 hrs a day, 5 days a week, total of 40hrs/week
+employment pattern.
+While it has also revealed that employees worked various amount of time per week (assuming work 
+hours = workplace checkin hours). 
+*In this attempt I tried use mean() to calculate the checkin duration at workplace, however, 
+in reality, individual had multiple checkin durations in a day, thus below "employee reported 
+hrs is not accurate", but needs further wrangling with condition "under the same day".
+
+```{r} 
+dailyhour_employer <- Jobs %>%
+  group_by(educationRequirement) %>%
+  summarise(
+    n=n(),
+    dailyhrs=mean(totalworkhour)/5)
+
+Participants<-avgcheckintime2 %>%
+    select("participantId", "Apartmentavgduration", "Pubavgduration", 
+           "Restaurantavgduration", 'Workplaceavgduration') %>%
+    distinct() %>%
+    right_join(Participants, by = "participantId")
+
+dailyhour_employee <- Participants%>%
+  group_by(educationLevel) %>%
+  summarise(
+    n=n(),
+    dailyhrs=mean(Workplaceavgduration))
+
+df1 <- data.frame(dailyhour_employer$educationRequirement, 
+                  dailyhour_employer$dailyhrs, dailyhour_employee$dailyhrs)
+
+fig <- plot_ly(df1, x = ~df1$dailyhour_employer.educationRequirement, 
+               y = ~df1$dailyhour_employer.dailyhrs, type = 'bar', 
+               name='employer reported hrs')
+fig <- fig %>% add_trace(y = ~df1$dailyhour_employee.dailyhrs, 
+                         name = 'employee reported hrs')
+
+fig <- fig %>% layout(title = "Fg.1-1 Daily workhours vs educational requirement",
+         xaxis = list(title = ""),
+         yaxis = list(title = ""),barmode = 'group')
+fig
+```
+The total weekly pay's distribution is as per below. As expected, employer gives higher 
+salary to better educated candidates.
+
+```{r}
+weeklypay_education <- Jobs %>%
+  group_by(educationRequirement) %>%
+  summarise(
+    n=n(),
+    mean=mean(totalweeklypay),
+    sd=sd(totalweeklypay))%>%
+mutate(se=sd/sqrt(n-1))
+
+knitr::kable(head(weeklypay_education), format = 'html')
+
+ggplot(weeklypay_education) +
+  geom_errorbar(
+    aes(x=educationRequirement, 
+        ymin=mean-se, 
+        ymax=mean+se), 
+    width=0.2, 
+    colour="black", 
+    alpha=0.9, 
+    size=0.5) +
+  geom_point(aes
+           (x=educationRequirement, 
+            y=mean), 
+           stat="identity", 
+           color="red",
+           size = 1.5,
+           alpha=1) +
+  ggtitle("Fg.1-2 Weekly pay vs educational requirement")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+Company 848, among with other 9 companies, are the top paying employers in the city, paying 
+a weekly salary of 1.3k to 1.6k on average to each employee respectively. 
+
+```{r}
+weeklypay_employer <- Jobs %>%
+  group_by(employerId) %>%
+  summarise(
+    n=n(),
+    mean=mean(totalweeklypay))
+colnames(weeklypay_employer)[2] <- "headcount"
+colnames(weeklypay_employer)[3] <- "averagepay"
+
+
+weeklypay_employer_amount<-weeklypay_employer %>% slice_max(averagepay, n = 10)
+weeklypay_employer_amount<-weeklypay_employer_amount[order(weeklypay_employer_amount$averagepay),
+                                                     decreasing =FALSE]
+weeklypay_employer_headcount<-weeklypay_employer %>% slice_max(headcount, n = 50)
+weeklypay_employer_headcount<-weeklypay_employer_headcount[order(weeklypay_employer_headcount$averagepay),
+                                                           decreasing =FALSE]
+weeklypay_employer_amount$employerId <- sapply(weeklypay_employer_amount$employerId, function(x)
+  paste('Company',x ))
+weeklypay_employer_headcount$employerId <- sapply(weeklypay_employer_headcount$employerId, function(x) paste('Company',x ))
+
+fig <- plot_ly(weeklypay_employer_amount,y=~weeklypay_employer_amount$employerId,
+               x=~weeklypay_employer_amount$averagepay,type ='bar',orientation ='h',
+        marker = list(color = 'rgb(158,202,225)',
+                      line = list(color = 'rgb(8,48,107)',
+                                  width = 1.5)))
+fig <- fig %>% layout(title = "Fg.1-3 Top 10 highest paying employers",
+         xaxis = list(title = ""),
+         yaxis = list(title = "",
+                      categoryorder = 'array',
+                      categoryarray = ~weeklypay_employer_amount$employerId))
+fig
+```
+
+Company 383, among with other 50 companies, are the employers who hire the most employees 
+in the city. Ranging 8-9 pax per company.
+
+```{r}
+fig <- plot_ly(weeklypay_employer_headcount, y = ~weeklypay_employer_headcount$employerId,
+               x = ~weeklypay_employer_headcount$headcount, type = 'bar',orientation = 'h',
+        marker = list(color = 'rgb(158,202,225)',
+                      line = list(color = 'rgb(8,48,107)',
+                                  width = 1.5)))
+fig <- fig %>% layout(barmode = 'stack',
+                             title = "Fg.1-4 Employers with most employees",
+                             xaxis = list(title = ""),
+                             yaxis = list(title = "",
+                                          categoryorder = 'array',
+                                          categoryarray = 
+                                            ~weeklypay_employer_headcount$employerId))
+fig
+```
+
+Participants of OHIO city spend 1 to 2+ hrs in workplace/apartment commute, which is higher 
+than the national average of 28min according to U.S. Census Bureau.
+
+```{r} 
+workplaceaprtmenttraveltime$tooltip <- c(paste0("ID=", workplaceaprtmenttraveltime$participantId,
+                                                "time=", workplaceaprtmenttraveltime$time))
+p <- ggplot(workplaceaprtmenttraveltime,aes(x = time))+
+  geom_dotplot_interactive(aes(tooltip = workplaceaprtmenttraveltime$tooltip),stackgroups = TRUE,
+                           binwidth = 0.009,method = "histodot")+
+  scale_y_continuous(NULL,breaks = NULL)+
+  ggtitle("Fg.1-5 Workplace/Apartment commute time")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+girafe(ggobj = p,width_svg = 20,height_svg =  20*0.618)
+```
+# Part 3. Turnover Rate
+With 1011 participants, majority of them had worked a single place during the time surveyed. 
+The mean of places worked is 1.20. 
+With a null hypothesis that one works for more than one place (ie. model/hypothesis of place 
+worked =1), our log Bayes factor has shown the null hypothesis cannot be rejected, meaning 
+indeed in city of OHIO, people have high likelyhood of having worked for more than one employer 
+during time surveyed.
+
+```{r} 
+set.seed(123)
+
+gghistostats(
+  data = Participants, ## data from which variable is to be taken
+  x = numberofplacesworked, ## numeric variable
+  xlab = "numbers of places worked", ## x-axis label
+  title = "Distribution of turnover rate", ## title for the plot
+  test.value = 1, ## test value
+  caption = "VAST Challenge 2022"
+)
+
+```
 
