@@ -24,6 +24,8 @@ navbar:
         href: "posts/2022-04-25-hw2/index.html"
       - text: "Take-home excercise 3"
         href: "posts/2022-04-25-hw3/index.html"
+      - text: "Take-home excercise 5"
+        href: "posts/2022-04-25-hw5/index.html"
     - text: "In-class Excersie"
       menu:
       - text: "In-class Excercise 4"

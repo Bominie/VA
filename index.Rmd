@@ -2,7 +2,7 @@
 title: "Bomin Kim"
 image: "beauty_1631187746608.JPG"
 description: |
-  zdhdzrhdzrg
+  fgjgjkh
 links:
   - label: LinkedIn
     url: "https://www.linkedin.com/in/bomin-kim-54229518b/"

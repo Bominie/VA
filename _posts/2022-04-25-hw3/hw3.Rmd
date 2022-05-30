@@ -156,6 +156,8 @@ in reality, individual had multiple checkin durations in a day, thus below "empl
 hrs is not accurate", but needs further wrangling with condition "under the same day".
 
 ```{r} 
+
+saveRDS(Jobs, file = "Jobs.rds")
 dailyhour_employer <- Jobs %>%
   group_by(educationRequirement) %>%
   summarise(

@@ -1,0 +1,206 @@
+---
+title: "Take home Exercise 5 "
+description: |
+  Visualising and Analysing Geographic and Movement Data
+author:
+  - name: Bomin Kim
+date: 2022-05-29
+output:
+  distill::distill_article:
+    self_contained: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = TRUE,warning = FALSE,message = FALSE)
+```
+# Overview
+In HW5 we will mainly focus on answering the bullet point 1 and 2 of challenge 2 in VAST 2022, ie. 
+
+1. Social area layouts in city of Engagement, Ohio USA
+2. Locations with traffic bottleneck of the city of Engagement, Ohio USA
+
+## Part 1. City layout
+Loading packages
+
+```{r}
+packages = c('tidyverse','knitr','tmap','readr','sf','clock')
+for(p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+Data reading with read_sf function.
+
+```{r}
+schools <- read_sf("data/Attributes/Schools.csv", 
+                   options = "GEOM_POSSIBLE_NAMES=location")  
+pubs <- read_sf("data/Attributes/Pubs.csv", 
+                   options = "GEOM_POSSIBLE_NAMES=location")
+apartments <- read_sf("data/Attributes/Apartments.csv", 
+                   options = "GEOM_POSSIBLE_NAMES=location")
+buildings <- read_sf("data/Attributes/Buildings.csv", 
+                   options = "GEOM_POSSIBLE_NAMES=location")
+employers <- read_sf("data/Attributes/Employers.csv", 
+                   options = "GEOM_POSSIBLE_NAMES=location")
+restaurants <- read_sf("data/Attributes/Restaurants.csv", 
+                   options = "GEOM_POSSIBLE_NAMES=location")
+```
+
+Building layout by basic funtions
+
+```{r}
+tmap_mode("view")
+tm_shape(buildings)+
+tm_polygons(col = "buildingType",
+           palette="Accent",
+           border.col = "black",
+           border.alpha = .5,
+           border.lwd = 0.5)
+tmap_mode("view")
+```
+Apartments layout by Rental Cost.
+
+```{r}
+apartments$rentalCost <- as.numeric(apartments$rentalCost)
+apartments$numberOfRooms <- as.numeric(apartments$numberOfRooms)
+apartments$maxOccupancy <- as.numeric(apartments$maxOccupancy)
+
+tmap_mode("view")
+tm_shape(buildings)+
+tm_polygons(col = "buildingType",
+           palette="Accent",
+           border.col = "black",
+           border.alpha = 0.4,
+           border.lwd = 0.3)+
+tm_shape(apartments)+
+tm_bubbles(col = "rentalCost",
+           alpha = 0.4,
+           n = 4,
+           style = "jenks",
+           palette="OrRd",
+           size = "numberOfRooms",
+           scale = 0.4,
+           border.col = "black",
+           border.lwd = 0.3)
+tmap_mode("view")
+```
+Employers layout by # of ppl employed (headcouts).
+
+```{r}
+Jobs<-readRDS("data/Jobs.rds")
+
+employers$employerId <- as.numeric(employers$employerId)
+employers$buildingId <- as.numeric(employers$buildingId)
+
+weeklypay_employer <- Jobs %>%
+  group_by(employerId) %>%
+  summarise(
+    n=n(),
+    mean=mean(totalweeklypay))
+colnames(weeklypay_employer)[2] <- "headcount"
+colnames(weeklypay_employer)[3] <- "averagepay"
+
+employers<-weeklypay_employer %>%
+    select("employerId","headcount","averagepay") %>%
+    distinct() %>%
+    left_join(employers, by = 'employerId')
+
+employers1<-st_as_sf(employers)
+
+tmap_mode("view")
+tm_shape(buildings)+
+tm_polygons(col = "buildingType",
+           palette="Accent",
+           border.col = "black",
+           border.alpha = 0.4,
+           border.lwd = 0.3)+
+tm_shape(employers1)+
+tm_bubbles(col = "headcount",
+           alpha = 0.4,
+           n = 4,
+           style = "cont",
+           palette="OrRd",
+           scale = 0.4,
+           border.col = "black",
+           border.lwd = 0.3)
+tmap_mode("view")
+```
+Employers layout by weekly average salary.
+
+```{r}
+tmap_mode("view")
+tm_shape(buildings)+
+tm_polygons(col = "buildingType",
+           palette="Accent",
+           border.col = "black",
+           border.alpha = 0.4,
+           border.lwd = 0.3)+
+tm_shape(employers1)+
+tm_bubbles(col = "averagepay",
+           alpha = 0.4,
+           n = 4,
+           style = "cont",
+           palette="viridis",
+           scale = 0.4,
+           border.col = "black",
+           border.lwd = 0.3)
+tmap_mode("view")
+```
+Pubs layout by hourly cost.
+
+```{r}
+pubs$hourlyCost <- as.numeric(pubs$hourlyCost)
+
+tmap_mode("view")
+tm_shape(buildings)+
+tm_polygons(col = "buildingType",
+           palette="Accent",
+           border.col = "black",
+           border.alpha = 0.4,
+           border.lwd = 0.3)+
+tm_shape(pubs)+
+tm_bubbles(col = "hourlyCost",
+           alpha = 0.4,
+           n = 4,
+           style = "jenks",
+           palette="Reds",
+           scale = 0.4,
+           border.col = "black",
+           border.lwd = 0.3)
+tmap_mode("view")
+```
+Schools layout by monthly cost.
+
+```{r}
+schools$monthlyCost <- as.numeric(schools$monthlyCost)
+
+tmap_mode("view")
+tm_shape(buildings)+
+tm_polygons(col = "buildingType",
+           palette="Accent",
+           border.col = "black",
+           border.alpha = 0.4,
+           border.lwd = 0.3)+
+tm_shape(schools)+
+tm_bubbles(col = "monthlyCost",
+           alpha = 0.4,
+           n = 4,
+           style = "jenks",
+           palette="Blues",
+           scale = 0.4,
+           border.col = "black",
+           border.lwd = 0.3)
+tmap_mode("view")
+```
+## Part 2. Traffic bottleneck
+From travelJournal we can find out the frequency of building ID's occurrence. We have cleaned the data to the minimum size that includes the location geometric information. However, the hex method failed to capture the occurrence of the geometric ID, most of the occurrence fell in NA category. Thus below table is a gimps of a clean data table that includes occurrence and location ID.
+
+```{r}
+travellocation<-readRDS("data/travellocation2.rds")
+
+knitr::kable(head(travellocation), format = 'html')
+```
+
