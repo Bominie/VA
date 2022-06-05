@@ -1,0 +1,358 @@
+---
+title: "Take home Exercise 6 "
+description: |
+  Visualising and Analysing Community Network
+author:
+  - name: Bomin Kim
+date: 2022-06-05
+output:
+  distill::distill_article:
+    self_contained: false
+---
+<style type="text/css">
+
+body{ /* Normal  */
+      font-size: 12px;
+  }
+td {  /* Table  */
+  font-size: 8px;
+}
+h1.title {
+  font-size: 38px;
+}
+h1 { /* Header 1 */
+  font-size: 28px;
+}
+h2 { /* Header 2 */
+    font-size: 22px;
+}
+</style>
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,eval = TRUE,warning = FALSE,message = FALSE)
+```
+
+## Overview
+In HW6 we will mainly focus on answering the 1st part of VAST Challenge 2022, ie. 
+
+1. The patterns in social networks in city of Engagement, OHIO 
+
+
+# Part 1. Data Preparation
+Loading packages
+
+```{r}
+packages = c('igraph', 'tidygraph', 
+             'ggraph', 'visNetwork', 
+             'lubridate', 'clock',
+             'tidyverse', 'graphlayouts','dplyr')
+for(p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p, character.only = T)
+}
+```
+
+Reading data
+
+Given the size of the SocialNetwork.csv is so big, I have chosen the first week of the survey 2022-03-01 to 2022-03-07 as the data basis for this study.
+
+```{r}
+participants <- read_rds("data/hw2_participants.rds")
+edgesoneweekday <- read_rds("data/edgesoneweekday.rds")
+edgesoneweekend <- read_rds("data/edgesoneweekend.rds")
+edgesoneweeksat <- read_rds("data/edgesoneweeksat.rds")
+edgesoneweekmon <- read_rds("data/edgesoneweekmon.rds")
+```
+
+Nodes and edges preparation
+
+```{r}
+weekday1 <- c("Mon", "Tue", "Wed", "Thu", "Fri")
+weekend1 <- c("Sat", "Sun")
+
+edgesoneweekday <- edgesoneweekday %>%
+  mutate (weektype = case_when(
+    weekday %in% weekday1 ~ "weekday",
+    weekday %in% weekend1 ~ "weekend"
+  ))%>%
+  select (-timestamp)
+edgesoneweekend <- edgesoneweekend %>%
+  mutate (weektype = case_when(
+    weekday %in% weekday1 ~ "weekday",
+    weekday %in% weekend1 ~ "weekend"
+  )) %>% 
+  select (-timestamp)
+edgesoneweeksat <- edgesoneweeksat %>%
+  mutate (weektype = case_when(
+    weekday %in% weekday1 ~ "weekday",
+    weekday %in% weekend1 ~ "weekend"
+  ))
+edgesoneweekmon <- edgesoneweekmon %>%
+  mutate (weektype = case_when(
+    weekday %in% weekday1 ~ "weekday",
+    weekday %in% weekend1 ~ "weekend"
+  ))
+
+edgesoneweekday_aggregated <- edgesoneweekday %>%
+  group_by(from,to) %>% summarise(weight = n()) %>% ungroup()
+edgesoneweekend_aggregated <- edgesoneweekend %>%
+  group_by(from,to) %>% summarise(weight = n()) %>% ungroup()
+edgesoneweeksat_aggregated <- edgesoneweeksat %>%
+  group_by(from,to) %>% summarise(weight = n()) %>% ungroup()
+edgesoneweekmon_aggregated <- edgesoneweekmon %>%
+  group_by(from,to) %>% summarise(weight = n()) %>% ungroup()
+
+edgesweekdayid<-data.frame(a=edgesoneweekday_aggregated$from,
+                           b=edgesoneweekday_aggregated$to)
+edgesweekdayid<-pivot_longer(edgesweekdayid,a:b)%>% select(-1)
+edgesweekendid<-data.frame(a=edgesoneweekend_aggregated$from,
+                           b=edgesoneweekend_aggregated$to)
+edgesweekendid<-pivot_longer(edgesweekendid,a:b)%>% select(-1)
+
+edgessatid<-data.frame(a=edgesoneweeksat_aggregated$from,
+                       b=edgesoneweeksat_aggregated$to)
+edgessatid<-pivot_longer(edgessatid,a:b)%>% select(-1)
+edgesmonid<-data.frame(a=edgesoneweekmon_aggregated$from,
+                       b=edgesoneweekmon_aggregated$to)
+edgesmonid<-pivot_longer(edgesmonid,a:b)%>% select(-1)
+
+participantsweekday <- semi_join(participants,edgesweekdayid,
+                                 by = c("participantId"="value"))
+participantsweekend <- semi_join(participants,edgesweekendid,
+                                 by = c("participantId"="value"))
+participantssat <- semi_join(participants,edgessatid,
+                             by = c("participantId"="value"))
+participantsmon <- semi_join(participants,edgesmonid,
+                             by = c("participantId"="value"))
+
+cgraphweekday<-igraph::graph_from_data_frame(d=edgesoneweekday_aggregated,
+                            vertices=participantsweekday,directed=FALSE)%>%
+  as_tbl_graph(cgraphweekday)
+
+cgraphweekend<-igraph::graph_from_data_frame(d=edgesoneweekend_aggregated,
+                            vertices=participantsweekend,directed=FALSE)%>%
+  as_tbl_graph(cgraphweekend)
+
+
+cgraphsat<-igraph::graph_from_data_frame(d=edgesoneweeksat_aggregated,
+                              vertices=participantssat,directed=FALSE)%>%
+  as_tbl_graph(cgraphsat)
+cgraphmon<-igraph::graph_from_data_frame(d=edgesoneweekmon_aggregated,
+                              vertices=participantsmon,directed=FALSE)%>%
+  as_tbl_graph(cgraphmon)
+
+cgraph_palette <- c(
+  "#1A5878", "#C44237", "#AD8941", "#E99093",
+  "#50594B", "#8968CD", "#9ACD32")
+V(cgraphweekday)$size <- degree(cgraphweekday)
+V(cgraphweekend)$size <- degree(cgraphweekend)
+V(cgraphsat)$size <- degree(cgraphsat)
+V(cgraphmon)$size <- degree(cgraphmon)
+```
+
+# Part 2. Joviality pattern vs social network pattern during weekday or weekend
+
+Weekday and weekend should exhibit different types of social interaction. 
+
+```{r}
+ggraph(cgraphweekday, layout = "stress") +
+  geom_edge_link0(aes(edge_width = weight), edge_colour = "grey66",)+
+  geom_node_point(aes(fill = joviality, size = size), shape = 21) +
+  geom_node_text(aes(filter = size >= 26, label = name), family = "serif") +
+  scale_edge_width(range = c(0.001, 1)) +
+  scale_size(range = c(1, 3)) +
+  theme_graph() +
+  theme(legend.position = "right")+
+  ggtitle("Fg.1-1 social interaction during weekday")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggraph(cgraphweekend, layout = "stress") +
+  geom_edge_link0(aes(edge_width = weight), edge_colour = "grey66",)+
+  geom_node_point(aes(fill = joviality, size = size), shape = 21) +
+  geom_node_text(aes(filter = size >= 26, label = name), family = "serif") +
+  scale_edge_width(range = c(0.001, 1)) +
+  scale_size(range = c(1, 3)) +
+  theme_graph() +
+  theme(legend.position = "right")+
+  ggtitle("Fg.1-2 social interaction during weekend")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+Above indeed has revealed:
+1. The more frequent social networking is, the happier the person is. This is demonstrated as the center of the cluster which has highest interaction is happier than the edge of the cluster.
+2. High joviality people have more frequent interactions with others during weekday than weekend. This can be likely interpreted as happier people have more private life during weekend than weekdays.
+3. There are more 1 to 1 interaction going on during weekend than weekdays.
+4. Weekdays has higher number of interaction than weekend. (weekday on average has higher edges than weekend)
+
+We will take a closer look between a Monday and a Saturday.
+
+```{r}
+ggraph(cgraphsat, layout = "stress") +
+  geom_edge_link0(aes(edge_width = weight), edge_colour = "grey66",)+
+  geom_node_point(aes(fill = joviality, size = size), shape = 21) +
+  geom_node_text(aes(filter = size >= 26, label = name), family = "serif") +
+  scale_edge_width(range = c(0.001, 1)) +
+  scale_size(range = c(1, 3)) +
+  theme_graph() +
+  theme(legend.position = "right")+
+  ggtitle("Fg.2-1 social interaction during Saturday")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+ggraph(cgraphmon, layout = "stress") +
+  geom_edge_link0(aes(edge_width = weight), edge_colour = "grey66",)+
+  geom_node_point(aes(fill = joviality, size = size), shape = 21) +
+  geom_node_text(aes(filter = size >= 26, label = name), family = "serif") +
+  scale_edge_width(range = c(0.001, 1)) +
+  scale_size(range = c(1, 3)) +
+  theme_graph() +
+  theme(legend.position = "right")+
+  ggtitle("Fg.2-1 social interaction during Monday")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+Above has once validate our 4 findings in part 1. Also, during a typical Saturday, the social network is happening in a more diverse and scattered scale than a typical Monday.
+
+# Part 3. Age group vs social network pattern during weekday or weekend
+
+```{r}
+participantsweekday1 <- participantsweekday %>%
+rename(group = agegroup)%>%
+  rename(id = participantId)
+  
+visNetwork(participantsweekday1,edgesoneweekday_aggregated) %>%
+visIgraphLayout(layout = "layout_with_fr") %>%
+  visOptions(highlightNearest=TRUE,
+             nodesIdSelection = TRUE) %>%
+  visLegend(width = 0.1, position = "right", main = "Legend") %>%
+  visLayout(randomSeed = 333)
+
+participantsweekend1 <- participantsweekend %>%
+rename(group = agegroup)%>%
+  rename(id = participantId)
+  
+visNetwork(participantsweekend1,edgesoneweekend_aggregated) %>%
+visIgraphLayout(layout = "layout_with_fr") %>%
+  visOptions(highlightNearest=TRUE,
+             nodesIdSelection = TRUE) %>%
+  visLegend(width = 0.1, position = "right", main = "Legend") %>%
+  visLayout(randomSeed = 333)
+```
+Above has revealed the city has low discrimination against age. The society is quite harmonious regardless of weekday in terms of all age groups interacting with each other.
+
+# Part 4. Entertainment types vs Saturday and Monday
+```{r}
+participantsmon[is.na(participantsmon)] = 0
+participantssat[is.na(participantssat)] = 0
+
+participantsmon1<-participantsmon%>%
+  mutate(pubfrequency=case_when(
+    Pubvisits<quantile(participantsmon$Pubvisits,probs=c(.25))~"Lowest frequency",
+    Pubvisits>=quantile(participantsmon$Pubvisits,probs=c(.25))&
+      Pubvisits<quantile(participantsmon$Pubvisits,probs=c(.50))~"Lower frequency",
+    Pubvisits>=quantile(participantsmon$Pubvisits,probs=c(.50))&
+      Pubvisits<quantile(participantsmon$Pubvisits,probs=c(.75))~"Higher frequency",
+    Pubvisits>=quantile(participantsmon$Pubvisits,probs=c(.75)) ~"Highest frequency"))
+
+participantsmon1<-participantsmon1%>%
+  mutate(resfrequency=case_when(
+    Restaurantvisits<quantile(participantsmon$Restaurantvisits,probs=c(.25))~"Lowest frequency",
+    Restaurantvisits>=quantile(participantsmon$Restaurantvisits,probs=c(.25))&
+      Restaurantvisits<quantile(participantsmon$Restaurantvisits,probs=c(.50))~"Lower frequency",
+    Restaurantvisits>=quantile(participantsmon$Restaurantvisits,probs=c(.50))&
+      Restaurantvisits<quantile(participantsmon$Restaurantvisits,probs=c(.75))~"Higher frequency",
+    Restaurantvisits>=quantile(participantsmon$Restaurantvisits,probs=c(.75)) ~"Highest frequency"))
+
+participantssat1<-participantssat%>%
+  mutate(pubfrequency=case_when(
+    Pubvisits<quantile(participantssat$Pubvisits,probs=c(.25))~"Lowest frequency",
+    Pubvisits>=quantile(participantssat$Pubvisits,probs=c(.25))&
+      Pubvisits<quantile(participantssat$Pubvisits,probs=c(.50))~"Lower frequency",
+    Pubvisits>=quantile(participantssat$Pubvisits,probs=c(.50))&
+      Pubvisits<quantile(participantssat$Pubvisits,probs=c(.75))~"Higher frequency",
+    Pubvisits>=quantile(participantssat$Pubvisits,probs=c(.75)) ~"Highest frequency"))
+
+participantssat1<-participantssat1%>%
+  mutate(resfrequency=case_when(
+    Restaurantvisits<quantile(participantssat$Restaurantvisits,probs=c(.25))~"Lowest frequency",
+    Restaurantvisits>=quantile(participantssat$Restaurantvisits,probs=c(.25))&
+      Restaurantvisits<quantile(participantssat$Restaurantvisits,probs=c(.50))~"Lower frequency",
+    Restaurantvisits>=quantile(participantssat$Restaurantvisits,probs=c(.50))&
+      Restaurantvisits<quantile(participantssat$Restaurantvisits,probs=c(.75))~"Higher frequency",
+    Restaurantvisits>=quantile(participantssat$Restaurantvisits,probs=c(.75)) ~"Highest frequency"))
+
+cgraphsat1<-igraph::graph_from_data_frame(d=edgesoneweeksat_aggregated,
+                              vertices=participantssat1,directed=FALSE)%>%
+  as_tbl_graph(cgraphsat1)
+cgraphmon1<-igraph::graph_from_data_frame(d=edgesoneweekmon_aggregated,
+                              vertices=participantsmon1,directed=FALSE)%>%
+  as_tbl_graph(cgraphmon1)
+
+set_graph_style()
+g <- ggraph(cgraphmon1,
+layout = "nicely") +
+geom_edge_link(aes(width=weight),
+alpha=0.2) +
+scale_edge_width(range = c(0.1, 0.1)) +
+geom_node_point(aes(colour = pubfrequency),
+size = 0.01)
+g + facet_nodes(~pubfrequency)+
+th_foreground(foreground = "grey80"
+,
+border = TRUE) +
+theme(legend.position = 'bottom')+
+  ggtitle("Fg.4-1 pubfrequency during Monday")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+set_graph_style()
+g <- ggraph(cgraphsat1,
+layout = "nicely") +
+geom_edge_link(aes(width=weight),
+alpha=0.2) +
+scale_edge_width(range = c(0.1, 0.1)) +
+geom_node_point(aes(colour = pubfrequency),
+size = 0.01)
+g + facet_nodes(~pubfrequency)+
+th_foreground(foreground = "grey80"
+,
+border = TRUE) +
+theme(legend.position = 'bottom')+
+  ggtitle("Fg.4-1 pubfrequency during Saturday")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+Above has revealed that pub visit has bigger cluster during weekday than weekend, across lighter to heavy drinker.
+This can likely be interpreted is during weekdays, coworkers would like to drink more often together than during weekend. In weekend, people go to pub more likely in the form of dates.
+
+```{r}
+set_graph_style()
+g <- ggraph(cgraphmon1,
+layout = "nicely") +
+geom_edge_link(aes(width=weight),
+alpha=0.2) +
+scale_edge_width(range = c(0.1, 0.1)) +
+geom_node_point(aes(colour = resfrequency),
+size = 0.01)
+g + facet_nodes(~resfrequency)+
+th_foreground(foreground = "grey80"
+,
+border = TRUE) +
+theme(legend.position = 'bottom')+
+  ggtitle("Fg.4-2 resfrequency during Monday")+
+  theme(plot.title = element_text(hjust = 0.5))
+
+set_graph_style()
+g <- ggraph(cgraphsat1,
+layout = "nicely") +
+geom_edge_link(aes(width=weight),
+alpha=0.2) +
+scale_edge_width(range = c(0.1, 0.1)) +
+geom_node_point(aes(colour = resfrequency),
+size = 0.01)
+g + facet_nodes(~resfrequency)+
+th_foreground(foreground = "grey80"
+,
+border = TRUE) +
+theme(legend.position = 'bottom')+
+  ggtitle("Fg.4-1 resfrequency during Saturday")+
+  theme(plot.title = element_text(hjust = 0.5))
+```
+Above has revealed that restaurant visit cluster is also denser during weekday than weekend. Also, social network happens more often in restaurant than in pub regardless weekday or weekend.
