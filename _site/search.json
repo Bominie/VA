@@ -15,6 +15,20 @@
       "author": [],
       "contents": "\n\n          \n          \n          Visual Analytics and Applications\n          \n          \n          DataViz Makeover\n           \n          ▾\n          \n          \n          DataViz Makeover 1\n          DataViz Makeover 2\n          \n          \n          \n          \n          Take-home Exercise\n           \n          ▾\n          \n          \n          Take-home excercise 1\n          Take-home excercise 2\n          Take-home excercise 3\n          Take-home excercise 5\n          Take-home excercise 6\n          \n          \n          \n          \n          In-class Excersie\n           \n          ▾\n          \n          \n          In-class Excercise 4\n          \n          \n          \n          \n          Home\n          About\n          ☰\n          \n          \n      \n        \n          \n            Bomin Kim\n          \n          \n            \n              Welcome to the website. I hope you enjoy it!\n              I bet you “R”\n            \n            \n              Welcome to the website. I hope you enjoy it!\n              I bet you “R”\n            \n          \n\n          \n            \n              \n                  \n                    \n                      LinkedIn\n                    \n                  \n                \n                                \n                  \n                    \n                      GitHub\n                    \n                  \n                \n                                \n                  \n                    \n                      Tableau\n                    \n                  \n                \n                              \n          \n\n          \n            \n              \n                                \n                  \n                    LinkedIn\n                  \n                \n                                \n                  \n                    GitHub\n                  \n                \n                                \n                  \n                    Tableau\n                  \n                \n                              \n            \n          \n        \n      \n    \n\n    \n    \n    ",
       "last_modified": "2022-06-05T22:04:45+08:00"
+    },
+    {
+      "path": "project.html",
+      "title": "VA Projec-Point 1",
+      "description": "A new article created using the Distill format.\n",
+      "author": [
+        {
+          "name": "Bomin Kim",
+          "url": "https://example.com/norajones"
+        }
+      ],
+      "date": "`r Sys.Date()`",
+      "contents": "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nReading layer `buildings' from data source \n  `/Users/bominkim/Desktop/Bominie/VA/_posts/project/data/buildings.shp' \n  using driver `ESRI Shapefile'\nSimple feature collection with 1042 features and 5 fields\nGeometry type: POLYGON\nDimension:     XY\nBounding box:  xmin: -4762.191 ymin: -30.08359 xmax: 2650 ymax: 7850.037\nCRS:           NA\n\n\n\n\n",
+      "last_modified": "2022-06-17T22:09:25+08:00"
     }
   ],
   "collections": ["posts/posts.json"]
